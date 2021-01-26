@@ -1,0 +1,154 @@
+#!/bin/bash
+Version=1.02
+Myname="${0##*/}"
+
+:<<'DOC'
+= fixfile - convert encoding to UTF-8 and line endings to LF
+
+= Synopsis
+fixfile [options] [file file...]	
+
+== Options
+
+-c|--crlf	convert line endings to CRLF; default: LF (unix)
+-e|--encoding	convert to the given encoding
+-H|--Help	print full documentation via less and exit
+-h|--help	print short help and exit
+-v|--verbose	be [not] verbose (quiet is the default)
+-V|--version	print version and exit
+
+= Description
+fixfile converts the given files in place, as follows:
+- the encoding is converted to the encoding specified by the |--encoding|
+  option, UTF8 by default.
+- line endings are replaced with linefeeds (|\xA|), or,
+  with the |--crlf| option, with carriage return + line feed (|\xD\xA|).
+- If the file appears to be an HTML file, non-ASCII characters are replaced
+  with their HTML equivalents; so for example ö will be replaced with |&#xf6;|.
+
+If no file is given, converts standard input to standard output.
+If any of the input files can not be converted for any reason, none of the
+files are converted and the script quits with exit value 1.
+
+= Bugs
+This script needs the utf82html executable. Sources for it are available
+[here](bitbucket.org/wybodekker/utf82html).
+
+= Author
+[Wybo Dekker](wybo@dekkerdocumenten.nl)
+
+= Copyright
+Released under the [GNU General Public License](www.gnu.org/copyleft/gpl.html)
+DOC
+
+REd='\e[38;5;9m' Mag='\e[38;5;5m' Nor='\e[0m'
+    die() { local i; for i; do echo -e "$Myname: $REd$i"; done 1>&2; exit 1; }
+   Warn() { local i; for i; do echo -e "$Myname: $Mag$i$Nor"; done 1>&2; }
+   warn() { $verbose && Warn "$@"; }
+helpsrt() { sed -n '/^= Synopsis/,/^= /p' "$0"|sed '1d;$d'; exit; }
+helpall() { sed -n "/^:<<'DOC'$/,/^DOC/p" "$0"|sed '1d;$d'|
+            less -P"$Myname-${Version/./·} (press h for help, q to quit)";exit; }
+
+:<<'DOC' #----------------------------------------------------------------------
+= handle_options
+synopsis:	 handle_options "$@"
+description:	handle the options.
+globals used:	 Myname Version
+globals  set:	 args
+DOC
+#-------------------------------------------------------------------------------
+handle_options() {
+   local options
+      options=$(getopt \
+      -n "$Myname" \
+      -o hHVIve:c \
+      -l help,Help,version,verbose,encoding:,crlf -- "$@"
+   ) || exit 1
+   eval set -- "$options"
+   
+   outenc=utf8
+   linend='\n'
+   export verbose=false
+   while true; do
+      case $1 in
+      (-H|--Help)     # print full documentation via less and exit
+		      helpall
+		      ;;
+      (-h|--help)     # print short help and exit
+		      helpsrt
+		      ;;
+      (-V|--version)  # print version and exit
+		      echo $Version
+		      exit
+		      ;;
+      (-c|--crlf)     # convert line endings to CRLF; default: LF (unix)
+		      linend='\r\n'
+		      shift
+		      ;;
+      (-e|--encoding) # convert to the given encoding
+		      default: UTF-8
+		      outenc="$2"
+		      shift 2
+		      ;;
+      (-v|--verbose)  # be [not] verbose (quiet is the default)
+		      verbose=true
+		      shift
+		      ;;
+      (-I)            instscript "$0" ||
+			 die 'the -I option is for developers only'
+		      exit
+		      ;;
+      (--)            shift
+		      break
+		      ;;
+      (*)             break
+		      ;;
+      esac
+   done
+   args=("$@")
+}
+
+handle_options "$@"
+set -- "${args[@]}"
+
+# check for valid output encoding:
+iconv -l |sed 's=//$==' |grep -iq "^$outenc$" ||
+   die "Output encoding ($outenc) is not recognized; try iconv -l"
+
+tmp=$(mktemp -t "$Myname.XXXXXXXXXX") out=
+trap 'rm -f $tmp' 0 1 2 15
+
+test $# -eq 0 && set /dev/stdin || out="> \"$i\""
+
+# first, check all input files for potential problems:
+for i; do
+   name="Input file $i"
+   test -z "$out" && name="Input stream"
+   test -e "$i"   || die "$name: not found"
+   test -r "$i"   || die "$name: is read-protected"
+   test -n "$out" -a ! -w "$i" && die "$name: write protected" 2>&1
+   cp "$i" "$tmp"
+   # check for valid input encoding:
+   enc=$(file --mime-encoding --brief "$tmp")
+   [[ $enc =~ ^unknown ]] && die "$name: unknown encoding"
+   # check for valid input file type (must be text file):
+   typ=$(file --mime-type     --brief "$tmp")
+   [[ $typ =~ ^text ]] || die "$name: is not a text file"
+done
+
+# everthing OK - now do the conversions:
+for i; do
+   warn "Converting $i"
+   cp "$i" "$tmp"
+   enc=$(file --mime-encoding -bL "$tmp")
+   typ=$(file --mime-type     -bL "$tmp")
+   [[ $typ =~ html ]] && filter='utf82html' || filter='cat'
+   eval "iconv --from=$enc --to=utf8 \"$tmp\" |
+      sed -z '
+	s/\([^\r]\)\n/\1\r\n/g
+	s/\([^\r\n]\)$/\1\r\n/		# append crlf to lines missing any EOL
+	s/\r\r/\r\n\r\n/g		#
+	s/\r\([^\n]\|$\)/\r\n\1/g	#
+	s/\r\n/$linend/g
+	' |$filter $out"
+done
