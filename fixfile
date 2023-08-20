@@ -1,5 +1,5 @@
 #!/bin/bash
-Version=1.02
+Version=1.03
 Myname="${0##*/}"
 
 :<<'DOC'
@@ -9,7 +9,6 @@ Myname="${0##*/}"
 fixfile [options] [file file...]	
 
 == Options
-
 -c|--crlf	convert line endings to CRLF; default: LF (unix)
 -e|--encoding	convert to the given encoding
 -H|--Help	print full documentation via less and exit
@@ -45,7 +44,7 @@ REd='\e[38;5;9m' Mag='\e[38;5;5m' Nor='\e[0m'
     die() { local i; for i; do echo -e "$Myname: $REd$i"; done 1>&2; exit 1; }
    Warn() { local i; for i; do echo -e "$Myname: $Mag$i$Nor"; done 1>&2; }
    warn() { $verbose && Warn "$@"; }
-helpsrt() { sed -n '/^= Synopsis/,/^= /p' "$0"|sed '1d;$d'; exit; }
+helpsrt() { sed -n "/^= $Myname/,/^= Desc/{/^= Desc/d;p}" "$0"; exit; }
 helpall() { sed -n "/^:<<'DOC'$/,/^DOC/p" "$0"|sed '1d;$d'|
             less -P"$Myname-${Version/./·} (press h for help, q to quit)";exit; }
 
