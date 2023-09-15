@@ -10,7 +10,7 @@ fixfile [options] [file file...]
 
 == Options
 -c|--crlf	convert line endings to CRLF; default: LF (unix)
--e|--encoding	convert to the given encoding
+-e|--encoding=X	convert to encoding X
 -H|--Help	print full documentation via less and exit
 -h|--help	print short help and exit
 -v|--verbose	be [not] verbose (quiet is the default)
@@ -84,7 +84,7 @@ handle_options() {
 		      linend='\r\n'
 		      shift
 		      ;;
-      (-e|--encoding) # convert to the given encoding
+      (-e|--encoding) # convert to encoding X
 		      default: UTF-8
 		      outenc="$2"
 		      shift 2

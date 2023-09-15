@@ -5,7 +5,7 @@
 |    type | bash
 |  author | Wybo Dekker
 |   email | wybo@dekkerdocumenten.nl
-| version | 1.02
+| version | 1.03
 | license | GNU General Public License
 
 fixfile converts the given files in place, as follows:
