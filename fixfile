@@ -2,19 +2,20 @@
 Version=1.03
 Myname="${0##*/}"
 
-:<<'DOC'
+doc=$(cat \
+<<'DOC'
 = fixfile - convert encoding to UTF-8 and line endings to LF
 
 = Synopsis
 fixfile [options] [file file...]	
 
-== Options
--c|--crlf	convert line endings to CRLF; default: LF (unix)
--e|--encoding=X	convert to encoding X
--H|--Help	print full documentation via less and exit
--h|--help	print short help and exit
--v|--verbose	be [not] verbose (quiet is the default)
--V|--version	print version and exit
+= Options
+-H,--Help	print full documentation via less and exit
+-h,--help	print short help and exit
+-V,--version	print version and exit
+-c,--crlf	convert line endings to CRLF; default: LF (unix)
+-e,--encoding=X	convert to encoding X
+-v,--verbose	be [not] verbose (quiet is the default)
 
 = Description
 fixfile converts the given files in place, as follows:
@@ -39,14 +40,16 @@ This script needs the utf82html executable. Sources for it are available
 = Copyright
 Released under the [GNU General Public License](www.gnu.org/copyleft/gpl.html)
 DOC
+)
 
-REd='\e[38;5;9m' Mag='\e[38;5;5m' Nor='\e[0m'
-    die() { local i; for i; do echo -e "$Myname: $REd$i"; done 1>&2; exit 1; }
-   Warn() { local i; for i; do echo -e "$Myname: $Mag$i$Nor"; done 1>&2; }
+# --- colors, help from embedded doc, die and warn ---------------------------------
+[ -t 1 ] && { Red=$'\e[1;31m' Mag=$'\e[1;35m' Nor=$'\e[0m'; } || Red='' Mag='' Nor=''
+nv="-$Myname-${Version/./\\.} (press h for help, q to quit)"
+helpsrt() { sed -n '/^= Synopsis/,/^= Desc/{//d;p}' <<<"$doc"; exit; }
+helpall() { less -P"$nv" <<<"$doc"; exit; }
+    die() { printf "%s$Nor\n" "${@/#/$Myname: $Red}" >&2; exit 1; }
+   Warn() { printf "%s$Nor\n" "${@/#/$Myname: $Mag}" >&2; }
    warn() { $verbose && Warn "$@"; }
-helpsrt() { sed -n "/^= $Myname/,/^= Desc/{/^= Desc/d;p}" "$0"; exit; }
-helpall() { sed -n "/^:<<'DOC'$/,/^DOC/p" "$0"|sed '1d;$d'|
-            less -P"$Myname-${Version/./·} (press h for help, q to quit)";exit; }
 
 :<<'DOC' #----------------------------------------------------------------------
 = handle_options
